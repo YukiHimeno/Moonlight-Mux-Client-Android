@@ -1,0 +1,29 @@
+# Toolchains and downloaded third-party artifacts
+/tools/
+/downloads/
+
+# Build outputs
+/build/
+/.gradle/
+/local.properties
+/android-app/release-signing.properties
+/android-app/*.jks
+/android-app/*.keystore
+/android-app/build/
+/android-app/.gradle/
+/client/moonlight-mux-client/dist/
+/client/moonlight-mux-client/*.exe
+/client/moonlight_mux_windows_amd64.exe
+
+# Runtime configs may contain private endpoints/keys
+/client/config.json
+/server/config.json
+
+# Logs
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

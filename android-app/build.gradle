@@ -1,0 +1,138 @@
+plugins {
+    id "com.android.application"
+}
+
+def goSourceDir = rootProject.layout.projectDirectory.dir("client/moonlight-mux-client").asFile
+def generatedJniLibsDir = layout.buildDirectory.dir("generated/jniLibs")
+def androidNdkVersion = "27.2.12479018"
+def releaseSigningPropertiesFile = file("release-signing.properties")
+def releaseSigningProperties = new Properties()
+if (releaseSigningPropertiesFile.exists()) {
+    releaseSigningPropertiesFile.withInputStream { releaseSigningProperties.load(it) }
+}
+
+def findGoExecutable = {
+    def candidates = [
+            new File("C:/Program Files/Go/bin/go.exe"),
+            new File(rootDir, "tools/go/bin/go.exe")
+    ]
+    def found = candidates.find { it.exists() }
+    return found != null ? found.absolutePath : "go"
+}
+
+def findAndroidSdkDir = {
+    def localPropertiesFile = new File(rootDir, "local.properties")
+    if (localPropertiesFile.exists()) {
+        def properties = new Properties()
+        localPropertiesFile.withInputStream { properties.load(it) }
+        def sdkDir = properties.getProperty("sdk.dir")
+        if (sdkDir != null) {
+            return new File(sdkDir)
+        }
+    }
+    def envSdk = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+    return envSdk != null ? new File(envSdk) : new File("C:/Android/sdk")
+}
+
+def findNdkClang = { String target, int api ->
+    def os = org.gradle.internal.os.OperatingSystem.current()
+    def hostTag = os.isWindows() ? "windows-x86_64" : (os.isMacOsX() ? "darwin-x86_64" : "linux-x86_64")
+    def exeSuffix = os.isWindows() ? ".cmd" : ""
+    return new File(
+            findAndroidSdkDir(),
+            "ndk/${androidNdkVersion}/toolchains/llvm/prebuilt/${hostTag}/bin/${target}${api}-clang${exeSuffix}"
+    )
+}
+
+def registerGoClientBuild = { String taskName, String androidAbi, String goArch, String goArm = null, File cc = null ->
+    tasks.register(taskName, Exec) {
+        def outFileProvider = layout.buildDirectory.file("generated/jniLibs/${androidAbi}/libmoonlightmuxclient.so")
+        inputs.files(fileTree(goSourceDir) {
+            include "go.mod"
+            include "*.go"
+        })
+        outputs.file(outFileProvider)
+
+        workingDir goSourceDir
+        executable findGoExecutable()
+        environment "CGO_ENABLED", cc == null ? "0" : "1"
+        environment "GOOS", "android"
+        environment "GOARCH", goArch
+        if (goArm != null) {
+            environment "GOARM", goArm
+        }
+        if (cc != null) {
+            environment "CC", cc.absolutePath
+        }
+        args "build", "-trimpath", "-ldflags", "-s -w", "-o", outFileProvider.get().asFile.absolutePath, "."
+
+        doFirst {
+            if (cc != null && !cc.exists()) {
+                throw new GradleException("Android NDK clang not found: ${cc.absolutePath}. Install ndk;${androidNdkVersion}.")
+            }
+            outFileProvider.get().asFile.parentFile.mkdirs()
+        }
+    }
+}
+
+def buildGoClientArm64 = registerGoClientBuild("buildGoClientArm64", "arm64-v8a", "arm64")
+def buildGoClientArmv7 = registerGoClientBuild(
+        "buildGoClientArmv7",
+        "armeabi-v7a",
+        "arm",
+        "7",
+        findNdkClang("armv7a-linux-androideabi", 26)
+)
+
+tasks.register("buildGoClients") {
+    dependsOn buildGoClientArm64
+    dependsOn buildGoClientArmv7
+}
+
+android {
+    namespace "com.xmcfw.moonlightmuxclient"
+    compileSdk 35
+    ndkVersion androidNdkVersion
+
+    defaultConfig {
+        applicationId "com.xmcfw.moonlightmuxclient"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "0.1.0"
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDir generatedJniLibsDir
+        }
+    }
+
+    signingConfigs {
+        release {
+            def configuredStoreFile = releaseSigningProperties.getProperty("storeFile") ?: findProperty("MOONLIGHT_MUX_STORE_FILE")
+            storeFile configuredStoreFile != null ? file(configuredStoreFile) : null
+            storePassword releaseSigningProperties.getProperty("storePassword") ?: findProperty("MOONLIGHT_MUX_STORE_PASSWORD")
+            keyAlias releaseSigningProperties.getProperty("keyAlias") ?: findProperty("MOONLIGHT_MUX_KEY_ALIAS")
+            keyPassword releaseSigningProperties.getProperty("keyPassword") ?: findProperty("MOONLIGHT_MUX_KEY_PASSWORD")
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += ["**/libmoonlightmuxclient.so"]
+        }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn tasks.named("buildGoClients")
+}

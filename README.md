@@ -34,7 +34,7 @@ https://nya.globalslb.net/natfrp/client/mux/moonlight/1.0.1/
 官方程序目前缺少完整文档，下面是最小配置示例。
 
 在安装 Sunshine 的机器上运行 mux server：
-
+在官方程序同目录内新建一个.json文件，填写以下配置
 ```json
 {
   "mode": "server",
@@ -60,7 +60,7 @@ tcp://127.0.0.1:YOUR_LOCAL_MUX_PORT
 
 两边启动 mux，并在sunshine侧启动隧道后，在 Moonlight 中连接 `127.0.0.1`，即可发现并连接远端 Sunshine 主机。
 
-`YOUR_LOCAL_MUX_PORT` 可以自行选择；它只需要和 mux server 监听端口、隧道本地目标端口保持一致。`YOUR_TUNNEL_HOST:PORT` 则是 Android 客户端实际能访问到的隧道公网入口。
+`YOUR_LOCAL_MUX_PORT` 可以自行选择；它只需要和 mux server 监听端口、隧道本地目标端口保持一致。`填写隧道启动时提供的域名:端口号` 则是 Android 客户端实际能访问到的隧道公网入口。
 
 ### SakuraFRP mux 二进制程序说明
 

@@ -1,9 +1,10 @@
 plugins {
     id "com.android.application"
+    id "org.jetbrains.kotlin.plugin.compose"
 }
 
 def goSourceDir = rootProject.layout.projectDirectory.dir("client/moonlight-mux-client").asFile
-def generatedJniLibsDir = layout.buildDirectory.dir("generated/jniLibs")
+def generatedJniLibsDir = layout.buildDirectory.dir("generated/jniLibs").get().asFile
 def androidNdkVersion = "27.2.12479018"
 def releaseSigningPropertiesFile = file("release-signing.properties")
 def releaseSigningProperties = new Properties()
@@ -90,16 +91,20 @@ tasks.register("buildGoClients") {
 }
 
 android {
-    namespace "com.xmcfw.moonlightmuxclient"
-    compileSdk 35
+    namespace "com.himeno.moonlightmux"
+    compileSdk 37
     ndkVersion androidNdkVersion
 
     defaultConfig {
-        applicationId "com.xmcfw.moonlightmuxclient"
+        applicationId "com.himeno.moonlightmux"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "0.1.0"
+        versionCode 2
+        versionName "0.2.0"
+    }
+
+    buildFeatures {
+        compose true
     }
 
     sourceSets {
@@ -131,6 +136,16 @@ android {
             keepDebugSymbols += ["**/libmoonlightmuxclient.so"]
         }
     }
+}
+
+dependencies {
+    implementation "androidx.activity:activity-compose:1.13.0"
+    implementation "org.jetbrains.compose.runtime:runtime:1.12.0"
+    implementation "org.jetbrains.compose.ui:ui:1.12.0"
+    implementation "org.jetbrains.compose.ui:ui-tooling-preview:1.12.0"
+    implementation "org.jetbrains.compose.foundation:foundation:1.12.0"
+    implementation "org.jetbrains.compose.material:material:1.12.0"
+    implementation "top.yukonga.miuix.kmp:miuix-ui:0.9.4"
 }
 
 tasks.named("preBuild") {

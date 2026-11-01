@@ -1,7 +1,6 @@
 package com.xmcfw.moonlightmuxclient;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
@@ -11,35 +10,36 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.InputType;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TextView;
 import android.widget.Toast;
+import androidx.activity.ComponentActivity;
+import androidx.compose.runtime.MutableState;
+import androidx.compose.runtime.mutableStateOf;
 
-public class MainActivity extends Activity {
-    private EditText serverInput;
-    private EditText keyInput;
-    private EditText localInput;
-    private EditText portInput;
-    private CheckBox debugInput;
-    private Button startButton;
-    private Button stopButton;
-    private Button overlayButton;
-    private TextView statusView;
-    private TextView overlayStatusView;
-    private TextView logView;
-    private ScrollView logScroll;
+import java.util.UUID;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+public class MainActivity extends ComponentActivity {
+    private static final String PROFILES_KEY = "profiles_json";
+    private static final String ACTIVE_PROFILE_KEY = "active_profile";
+    private String selectedProfileId;
+    private final MutableState<String> profileNameState = mutableStateOf("");
+    private final MutableState<String> serverState = mutableStateOf("");
+    private final MutableState<String> keyState = mutableStateOf("");
+    private final MutableState<String> localState = mutableStateOf("127.0.0.1");
+    private final MutableState<String> portState = mutableStateOf("47989");
+    private final MutableState<Boolean> debugState = mutableStateOf(true);
+    private final MutableState<String> statusState = mutableStateOf("Stopped");
+    private final MutableState<String> logsState = mutableStateOf("");
+    private final MutableState<Boolean> overlayAllowedState = mutableStateOf(false);
+    private final MutableState<Boolean> runningState = mutableStateOf(false);
+    private final MutableState<Boolean> profilesOpenState = mutableStateOf(false);
+    private final MutableState<String> newProfileNameState = mutableStateOf("");
+    private final MutableState<String> profileNamesState = mutableStateOf("");
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -58,8 +58,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         requestNotificationPermission();
-        buildUi();
         loadConfig();
+        buildUi();
         handleLaunchIntent(getIntent());
         refreshLogs();
         updateStatus(MuxClientService.isRunning(), MuxClientService.isRunning() ? "Running" : "Stopped");
@@ -96,156 +96,161 @@ public class MainActivity extends Activity {
     }
 
     private void buildUi() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(18), dp(14), dp(18), dp(14));
-        root.setBackgroundColor(0xFFF7F8FA);
-
-        TextView title = new TextView(this);
-        title.setText("Moonlight Mux Client");
-        title.setTextColor(0xFF111827);
-        title.setTextSize(22);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        root.addView(title, matchWrap());
-
-        statusView = new TextView(this);
-        statusView.setTextSize(14);
-        statusView.setTextColor(0xFF4B5563);
-        statusView.setPadding(0, dp(4), 0, dp(12));
-        root.addView(statusView, matchWrap());
-
-        overlayStatusView = new TextView(this);
-        overlayStatusView.setTextSize(13);
-        overlayStatusView.setTextColor(0xFF4B5563);
-        overlayStatusView.setPadding(0, 0, 0, dp(4));
-        root.addView(overlayStatusView, matchWrap());
-
-        overlayButton = new Button(this);
-        overlayButton.setText("Overlay permission");
-        overlayButton.setOnClickListener(v -> openOverlaySettings());
-        root.addView(overlayButton, matchWrap());
-
-        serverInput = addInput(root, "Server", "host:port", InputType.TYPE_CLASS_TEXT);
-        keyInput = addInput(root, "Key", "at least 8 characters", InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        localInput = addInput(root, "Local bind", "127.0.0.1", InputType.TYPE_CLASS_TEXT);
-        portInput = addInput(root, "Base port", "47989", InputType.TYPE_CLASS_NUMBER);
-
-        debugInput = new CheckBox(this);
-        debugInput.setText("Debug log");
-        debugInput.setTextColor(0xFF111827);
-        debugInput.setChecked(true);
-        root.addView(debugInput, matchWrap());
-
-        LinearLayout actions = new LinearLayout(this);
-        actions.setOrientation(LinearLayout.HORIZONTAL);
-        actions.setGravity(Gravity.CENTER_VERTICAL);
-        actions.setPadding(0, dp(8), 0, dp(8));
-
-        startButton = new Button(this);
-        startButton.setText("Start");
-        startButton.setOnClickListener(v -> startClient());
-        actions.addView(startButton, weightedButton());
-
-        stopButton = new Button(this);
-        stopButton.setText("Stop");
-        stopButton.setOnClickListener(v -> stopClient());
-        actions.addView(stopButton, weightedButton());
-
-        Button copyButton = new Button(this);
-        copyButton.setText("Copy");
-        copyButton.setOnClickListener(v -> copyLogs());
-        actions.addView(copyButton, weightedButton());
-
-        Button clearButton = new Button(this);
-        clearButton.setText("Clear");
-        clearButton.setOnClickListener(v -> {
-            LogBuffer.clear();
-            refreshLogs();
-        });
-        actions.addView(clearButton, weightedButton());
-        root.addView(actions, matchWrap());
-
-        logView = new TextView(this);
-        logView.setTextColor(0xFF101827);
-        logView.setTextSize(12);
-        logView.setTypeface(Typeface.MONOSPACE);
-        logView.setTextIsSelectable(true);
-        logView.setPadding(dp(10), dp(10), dp(10), dp(10));
-        logView.setBackgroundColor(0xFFFFFFFF);
-
-        logScroll = new ScrollView(this);
-        logScroll.setFillViewport(true);
-        logScroll.addView(logView, new ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT,
-                ScrollView.LayoutParams.WRAP_CONTENT
-        ));
-        root.addView(logScroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                0,
-                1
-        ));
-
-        setContentView(root);
-    }
-
-    private EditText addInput(LinearLayout root, String label, String hint, int inputType) {
-        TextView text = new TextView(this);
-        text.setText(label);
-        text.setTextColor(0xFF374151);
-        text.setTextSize(12);
-        text.setPadding(0, dp(6), 0, dp(2));
-        root.addView(text, matchWrap());
-
-        EditText input = new EditText(this);
-        input.setSingleLine(true);
-        input.setHint(hint);
-        input.setInputType(inputType);
-        input.setTextSize(15);
-        input.setSelectAllOnFocus(false);
-        root.addView(input, matchWrap());
-        return input;
+        MoonlightMuxScreenKt.installMoonlightContent(this,
+                profileNameState, serverState, keyState, localState, portState, debugState,
+                statusState, logsState, overlayAllowedState, runningState,
+                profilesOpenState, newProfileNameState, profileNamesState,
+                this::showProfiles, this::selectProfile, this::addProfile, this::renameCurrentProfile,
+                this::startClient, this::stopClient,
+                this::openOverlaySettings, this::copyLogs, this::clearLogs);
     }
 
     private void loadConfig() {
         SharedPreferences prefs = getSharedPreferences("config", MODE_PRIVATE);
-        serverInput.setText(prefs.getString(MuxClientService.EXTRA_SERVER, ""));
-        keyInput.setText(prefs.getString(MuxClientService.EXTRA_KEY, ""));
-        localInput.setText(prefs.getString(MuxClientService.EXTRA_LOCAL, "127.0.0.1"));
-        portInput.setText(String.valueOf(prefs.getInt(MuxClientService.EXTRA_PORT, 47989)));
-        debugInput.setChecked(prefs.getBoolean(MuxClientService.EXTRA_DEBUG, true));
+        JSONArray profiles = readProfiles();
+        if (profiles.length() > 0 && profiles.optJSONObject(0) == null) {
+            profiles = new JSONArray();
+            prefs.edit().remove(PROFILES_KEY).apply();
+        }
+        if (profiles.length() == 0) {
+            JSONObject legacy = new JSONObject();
+            try {
+                legacy.put("id", UUID.randomUUID().toString());
+                legacy.put("name", "Default");
+                legacy.put(MuxClientService.EXTRA_SERVER, prefs.getString(MuxClientService.EXTRA_SERVER, ""));
+                legacy.put(MuxClientService.EXTRA_KEY, prefs.getString(MuxClientService.EXTRA_KEY, ""));
+                legacy.put(MuxClientService.EXTRA_LOCAL, prefs.getString(MuxClientService.EXTRA_LOCAL, "127.0.0.1"));
+                legacy.put(MuxClientService.EXTRA_PORT, prefs.getInt(MuxClientService.EXTRA_PORT, 47989));
+                legacy.put(MuxClientService.EXTRA_DEBUG, prefs.getBoolean(MuxClientService.EXTRA_DEBUG, true));
+                profiles.put(legacy);
+            } catch (Exception ignored) { }
+            saveProfiles(profiles);
+        }
+        selectedProfileId = prefs.getString(ACTIVE_PROFILE_KEY, profiles.optJSONObject(0).optString("id"));
+        showProfile(selectedProfileId);
+    }
+
+    private JSONArray readProfiles() {
+        try { return new JSONArray(getSharedPreferences("config", MODE_PRIVATE).getString(PROFILES_KEY, "[]")); }
+        catch (Exception ignored) { return new JSONArray(); }
+    }
+
+    private void saveProfiles(JSONArray profiles) {
+        getSharedPreferences("config", MODE_PRIVATE).edit().putString(PROFILES_KEY, profiles.toString()).apply();
+    }
+
+    private JSONObject profile(String id) {
+        JSONArray all = readProfiles();
+        for (int i = 0; i < all.length(); i++) if (all.optJSONObject(i).optString("id").equals(id)) return all.optJSONObject(i);
+        return null;
+    }
+
+    private void showProfile(String id) {
+        JSONObject p = profile(id);
+        if (p == null) return;
+        selectedProfileId = id;
+        profileNameState.setValue(p.optString("name", "Default"));
+        serverState.setValue(p.optString(MuxClientService.EXTRA_SERVER, ""));
+        keyState.setValue(p.optString(MuxClientService.EXTRA_KEY, ""));
+        localState.setValue(p.optString(MuxClientService.EXTRA_LOCAL, "127.0.0.1"));
+        portState.setValue(String.valueOf(p.optInt(MuxClientService.EXTRA_PORT, 47989)));
+        debugState.setValue(p.optBoolean(MuxClientService.EXTRA_DEBUG, true));
+        getSharedPreferences("config", MODE_PRIVATE).edit().putString(ACTIVE_PROFILE_KEY, id).apply();
+    }
+
+    private void persistCurrentProfile() {
+        JSONArray all = readProfiles();
+        JSONObject p = profile(selectedProfileId);
+        int profileIndex = -1;
+        for (int i = 0; i < all.length(); i++) {
+            if (all.optJSONObject(i).optString("id").equals(selectedProfileId)) { profileIndex = i; break; }
+        }
+        if (p == null) p = new JSONObject();
+        try {
+            p.put("id", selectedProfileId);
+            p.put("name", profileNameState.getValue());
+            p.put(MuxClientService.EXTRA_SERVER, serverState.getValue().trim());
+            p.put(MuxClientService.EXTRA_KEY, keyState.getValue());
+            p.put(MuxClientService.EXTRA_LOCAL, localState.getValue().trim());
+            p.put(MuxClientService.EXTRA_PORT, parsePort());
+            p.put(MuxClientService.EXTRA_DEBUG, debugState.getValue());
+            if (profileIndex < 0) all.put(p); else all.put(profileIndex, p);
+            saveProfiles(all);
+            getSharedPreferences("config", MODE_PRIVATE).edit()
+                    .putString(MuxClientService.EXTRA_SERVER, serverState.getValue().trim())
+                    .putString(MuxClientService.EXTRA_KEY, keyState.getValue())
+                    .putString(MuxClientService.EXTRA_LOCAL, localState.getValue().trim())
+                    .putInt(MuxClientService.EXTRA_PORT, parsePort())
+                    .putBoolean(MuxClientService.EXTRA_DEBUG, debugState.getValue()).apply();
+        } catch (Exception ignored) { }
+    }
+
+    private void showProfiles() {
+        if (MuxClientService.isRunning()) { toast("Stop the client before switching profiles"); return; }
+        persistCurrentProfile();
+        profilesOpenState.setValue(true);
+        updateProfileNames();
+    }
+
+    private void updateProfileNames() {
+        JSONArray all = readProfiles();
+        StringBuilder names = new StringBuilder();
+        for (int i = 0; i < all.length(); i++) {
+            if (i > 0) names.append("\n");
+            names.append(all.optJSONObject(i).optString("id")).append("|")
+                    .append(all.optJSONObject(i).optString("name", "Profile"));
+        }
+        profileNamesState.setValue(names.toString());
+    }
+
+    private void addProfile() {
+        String name = newProfileNameState.getValue().trim();
+        if (name.isEmpty()) { toast("Name is required"); return; }
+        JSONObject p = new JSONObject();
+        try {
+            p.put("id", UUID.randomUUID().toString()); p.put("name", name);
+            p.put(MuxClientService.EXTRA_SERVER, serverState.getValue()); p.put(MuxClientService.EXTRA_KEY, keyState.getValue());
+            p.put(MuxClientService.EXTRA_LOCAL, localState.getValue()); p.put(MuxClientService.EXTRA_PORT, parsePort());
+            p.put(MuxClientService.EXTRA_DEBUG, debugState.getValue());
+            JSONArray all = readProfiles(); all.put(p); saveProfiles(all); showProfile(p.optString("id"));
+            updateProfileNames(); newProfileNameState.setValue("");
+        } catch (Exception ignored) { }
+    }
+
+    private void renameCurrentProfile() {
+        String name = newProfileNameState.getValue().trim();
+        if (name.isEmpty()) { toast("Name is required"); return; }
+        JSONArray all = readProfiles();
+        for (int i = 0; i < all.length(); i++) {
+            JSONObject p = all.optJSONObject(i);
+            if (p.optString("id").equals(selectedProfileId)) try { p.put("name", name); } catch (Exception ignored) { }
+        }
+        saveProfiles(all);
+        profileNameState.setValue(name);
+        updateProfileNames();
+    }
+
+    private void selectProfile(String id) {
+        persistCurrentProfile();
+        showProfile(id);
+        profilesOpenState.setValue(false);
     }
 
     private void handleLaunchIntent(Intent intent) {
         if (intent == null || !MuxClientService.ACTION_START.equals(intent.getAction())) {
             return;
         }
-        if (intent.hasExtra(MuxClientService.EXTRA_SERVER)) {
-            serverInput.setText(intent.getStringExtra(MuxClientService.EXTRA_SERVER));
-        }
-        if (intent.hasExtra(MuxClientService.EXTRA_KEY)) {
-            keyInput.setText(intent.getStringExtra(MuxClientService.EXTRA_KEY));
-        }
-        if (intent.hasExtra(MuxClientService.EXTRA_LOCAL)) {
-            localInput.setText(intent.getStringExtra(MuxClientService.EXTRA_LOCAL));
-        }
-        if (intent.hasExtra(MuxClientService.EXTRA_PORT)) {
-            portInput.setText(String.valueOf(intent.getIntExtra(MuxClientService.EXTRA_PORT, 47989)));
-        }
-        if (intent.hasExtra(MuxClientService.EXTRA_DEBUG)) {
-            debugInput.setChecked(intent.getBooleanExtra(MuxClientService.EXTRA_DEBUG, true));
-        }
+        serverState.setValue(intent.getStringExtra(MuxClientService.EXTRA_SERVER, serverState.getValue()));
+        keyState.setValue(intent.getStringExtra(MuxClientService.EXTRA_KEY, keyState.getValue()));
+        localState.setValue(intent.getStringExtra(MuxClientService.EXTRA_LOCAL, localState.getValue()));
+        if (intent.hasExtra(MuxClientService.EXTRA_PORT)) portState.setValue(String.valueOf(intent.getIntExtra(MuxClientService.EXTRA_PORT, 47989)));
+        if (intent.hasExtra(MuxClientService.EXTRA_DEBUG)) debugState.setValue(intent.getBooleanExtra(MuxClientService.EXTRA_DEBUG, true));
+        persistCurrentProfile();
         startClient();
     }
 
     private void saveConfig() {
-        getSharedPreferences("config", MODE_PRIVATE)
-                .edit()
-                .putString(MuxClientService.EXTRA_SERVER, serverInput.getText().toString().trim())
-                .putString(MuxClientService.EXTRA_KEY, keyInput.getText().toString())
-                .putString(MuxClientService.EXTRA_LOCAL, localInput.getText().toString().trim())
-                .putInt(MuxClientService.EXTRA_PORT, parsePort())
-                .putBoolean(MuxClientService.EXTRA_DEBUG, debugInput.isChecked())
-                .apply();
+        persistCurrentProfile();
     }
 
     private void startClient() {
@@ -255,11 +260,11 @@ public class MainActivity extends Activity {
             openOverlaySettings();
             return;
         }
-        if (serverInput.getText().toString().trim().isEmpty()) {
+        if (serverState.getValue().trim().isEmpty()) {
             toast("Server is required");
             return;
         }
-        if (keyInput.getText().toString().length() < 8) {
+        if (keyState.getValue().length() < 8) {
             toast("Key must be at least 8 characters");
             return;
         }
@@ -267,11 +272,11 @@ public class MainActivity extends Activity {
 
         Intent intent = new Intent(this, MuxClientService.class);
         intent.setAction(MuxClientService.ACTION_START);
-        intent.putExtra(MuxClientService.EXTRA_SERVER, serverInput.getText().toString().trim());
-        intent.putExtra(MuxClientService.EXTRA_KEY, keyInput.getText().toString());
-        intent.putExtra(MuxClientService.EXTRA_LOCAL, localInput.getText().toString().trim());
+        intent.putExtra(MuxClientService.EXTRA_SERVER, serverState.getValue().trim());
+        intent.putExtra(MuxClientService.EXTRA_KEY, keyState.getValue());
+        intent.putExtra(MuxClientService.EXTRA_LOCAL, localState.getValue().trim());
         intent.putExtra(MuxClientService.EXTRA_PORT, parsePort());
-        intent.putExtra(MuxClientService.EXTRA_DEBUG, debugInput.isChecked());
+        intent.putExtra(MuxClientService.EXTRA_DEBUG, debugState.getValue());
 
         if (Build.VERSION.SDK_INT >= 26) {
             startForegroundService(intent);
@@ -289,27 +294,18 @@ public class MainActivity extends Activity {
     }
 
     private void refreshLogs() {
-        logView.setText(LogBuffer.snapshot());
-        logScroll.post(() -> logScroll.fullScroll(View.FOCUS_DOWN));
+        logsState.setValue(LogBuffer.snapshot());
     }
 
     private void updateStatus(boolean running, String message) {
-        statusView.setText(running ? "Running - " + message : "Stopped - " + message);
-        startButton.setEnabled(!running);
-        stopButton.setEnabled(running);
+        runningState.setValue(running);
+        statusState.setValue((running ? "Running" : "Stopped") + " · " + message);
         updateOverlayPermissionStatus();
     }
 
     private void updateOverlayPermissionStatus() {
         boolean allowed = OverlayKeepAlive.hasPermission(this);
-        if (overlayStatusView != null) {
-            overlayStatusView.setText(allowed ? "Overlay: authorized" : "Overlay: permission missing");
-            overlayStatusView.setTextColor(allowed ? 0xFF047857 : 0xFFB45309);
-        }
-        if (overlayButton != null) {
-            overlayButton.setEnabled(!allowed);
-            overlayButton.setVisibility(allowed ? View.GONE : View.VISIBLE);
-        }
+        overlayAllowedState.setValue(allowed);
     }
 
     private void openOverlaySettings() {
@@ -326,7 +322,7 @@ public class MainActivity extends Activity {
 
     private int parsePort() {
         try {
-            int port = Integer.parseInt(portInput.getText().toString().trim());
+            int port = Integer.parseInt(portState.getValue().trim());
             if (port >= 1 && port <= 65535) {
                 return port;
             }
@@ -343,27 +339,15 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void clearLogs() {
+        LogBuffer.clear();
+        refreshLogs();
+    }
+
     private void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 100);
         }
-    }
-
-    private LinearLayout.LayoutParams matchWrap() {
-        return new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-    }
-
-    private LinearLayout.LayoutParams weightedButton() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        params.setMargins(dp(2), 0, dp(2), 0);
-        return params;
-    }
-
-    private int dp(int value) {
-        return (int) (value * getResources().getDisplayMetrics().density + 0.5f);
     }
 
     private void toast(String message) {

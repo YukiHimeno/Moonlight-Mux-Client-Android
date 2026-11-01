@@ -14,6 +14,12 @@
 - 支持默认 Moonlight TCP/UDP 端口映射。
 - App 使用 Foreground Service 运行客户端。
 - App 在运行期间可创建 1x1 透明悬浮窗，用于提升部分 Android 设备后台保持稳定性。
+- 支持保存和切换多个连接配置；旧版单配置会自动迁移为 Default profile。
+- Android 界面使用 [Miuix for Compose](https://github.com/compose-miuix-ui/miuix) 组件库。
+- Android application ID：`com.himeno.moonlightmux`。
+- 支持保存、切换多个连接配置，旧版本的单配置会自动迁移为 Default profile。
+- Android 界面使用 [Miuix for Compose](https://github.com/compose-miuix-ui/miuix) 组件库。
+- Android application ID：`com.himeno.moonlightmux`。
 
 ### 适用范围
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
@@ -95,6 +96,7 @@ fun installMoonlightContent(
                             text = if (running.value) "Stop connection" else "Start connection",
                             onClick = if (running.value) onStop else onStart,
                             modifier = Modifier.fillMaxWidth(),
+                            colors = if (running.value) ButtonDefaults.textButtonColors() else ButtonDefaults.textButtonColorsPrimary(),
                         )
                         if (!overlayAllowed.value) {
                             Spacer(Modifier.height(8.dp))

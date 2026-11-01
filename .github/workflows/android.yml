@@ -18,12 +18,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: client/moonlight-mux-client/go.mod
-      - uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: "latest"
+      - name: Configure Android SDK
+        run: echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
-      - run: yes | sdkmanager --licenses
-      - run: sdkmanager "platforms;android-35" "ndk;27.2.12479018"
+      - run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+      - run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "ndk;27.2.12479018"
       - run: gradle :android-app:assembleDebug

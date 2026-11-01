@@ -33,7 +33,8 @@ class MainActivity : ComponentActivity() {
     private val runningState = mutableStateOf(false)
     private val profilesOpenState = mutableStateOf(false)
     private val newProfileNameState = mutableStateOf("")
-    private val profileNamesState = mutableStateOf("")
+    private val profileNamesState = mutableStateOf<List<ProfileItem>>(emptyList())
+    private val selectedProfileState = mutableStateOf("")
     private var selectedProfileId: String? = null
 
     private val receiver = object : BroadcastReceiver() {
@@ -86,6 +87,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        persistCurrentProfile()
         unregisterReceiver(receiver)
         super.onPause()
     }
@@ -95,8 +97,8 @@ class MainActivity : ComponentActivity() {
             this,
             profileNameState, serverState, keyState, localState, portState, debugState,
             statusState, logsState, overlayAllowedState, runningState,
-            profilesOpenState, newProfileNameState, profileNamesState,
-            ::showProfiles, ::selectProfile, ::addProfile, ::renameCurrentProfile,
+            profilesOpenState, newProfileNameState, profileNamesState, selectedProfileState,
+            ::showProfiles, ::selectProfile, ::addProfile, ::renameCurrentProfile, ::deleteProfile,
             ::startClient, ::stopClient, ::openOverlaySettings, ::copyLogs, ::clearLogs,
         )
     }
@@ -122,7 +124,8 @@ class MainActivity : ComponentActivity() {
             saveProfiles(profiles)
         }
         val defaultId = profiles.optJSONObject(0)?.optString("id")
-        selectedProfileId = prefs.getString(ACTIVE_PROFILE_KEY, defaultId)
+        val savedId = prefs.getString(ACTIVE_PROFILE_KEY, defaultId)
+        selectedProfileId = if (profile(savedId) != null) savedId else defaultId
         selectedProfileId?.let(::showProfile)
     }
 
@@ -149,6 +152,7 @@ class MainActivity : ComponentActivity() {
     private fun showProfile(id: String) {
         val item = profile(id) ?: return
         selectedProfileId = id
+        selectedProfileState.value = id
         profileNameState.value = item.optString("name", "Default")
         serverState.value = item.optString(MuxClientService.EXTRA_SERVER, "")
         keyState.value = item.optString(MuxClientService.EXTRA_KEY, "")
@@ -195,15 +199,17 @@ class MainActivity : ComponentActivity() {
             return
         }
         persistCurrentProfile()
-        profilesOpenState.value = true
         updateProfileNames()
+        newProfileNameState.value = ""
+        profilesOpenState.value = true
     }
 
     private fun updateProfileNames() {
         val all = readProfiles()
-        profileNamesState.value = (0 until all.length()).joinToString("\n") { i ->
-            val item = all.optJSONObject(i)
-            "${item?.optString("id")}|${item?.optString("name", "Profile")}"
+        profileNamesState.value = (0 until all.length()).mapNotNull { i ->
+            val item = all.optJSONObject(i) ?: return@mapNotNull null
+            val id = item.optString("id")
+            if (id.isBlank()) null else ProfileItem(id, item.optString("name", "Profile"))
         }
     }
 
@@ -217,17 +223,18 @@ class MainActivity : ComponentActivity() {
             val item = JSONObject().apply {
                 put("id", UUID.randomUUID().toString())
                 put("name", name)
-                put(MuxClientService.EXTRA_SERVER, serverState.value)
-                put(MuxClientService.EXTRA_KEY, keyState.value)
-                put(MuxClientService.EXTRA_LOCAL, localState.value)
-                put(MuxClientService.EXTRA_PORT, parsePort())
-                put(MuxClientService.EXTRA_DEBUG, debugState.value)
+                put(MuxClientService.EXTRA_SERVER, "")
+                put(MuxClientService.EXTRA_KEY, "")
+                put(MuxClientService.EXTRA_LOCAL, "127.0.0.1")
+                put(MuxClientService.EXTRA_PORT, 47989)
+                put(MuxClientService.EXTRA_DEBUG, true)
             }
             val all = readProfiles().put(item)
             saveProfiles(all)
             showProfile(item.optString("id"))
             updateProfileNames()
             newProfileNameState.value = ""
+            profilesOpenState.value = false
         } catch (_: Exception) {
         }
     }
@@ -250,6 +257,24 @@ class MainActivity : ComponentActivity() {
         }
         saveProfiles(all)
         profileNameState.value = name
+        updateProfileNames()
+        newProfileNameState.value = ""
+    }
+
+    private fun deleteProfile(id: String) {
+        val all = readProfiles()
+        if (all.length() <= 1) {
+            toast("Keep at least one profile")
+            return
+        }
+        val remaining = JSONArray()
+        for (i in 0 until all.length()) {
+            val item = all.optJSONObject(i) ?: continue
+            if (item.optString("id") != id) remaining.put(item)
+        }
+        if (remaining.length() == all.length() || remaining.length() == 0) return
+        saveProfiles(remaining)
+        if (id == selectedProfileId) showProfile(remaining.getJSONObject(0).getString("id"))
         updateProfileNames()
     }
 

@@ -1,46 +1,25 @@
-# Unofficial SakuraFRP Moonlight TCP Mux Android-Compatible Client
-
-## 中文
-
-这是一个**非官方**项目。
-
-本项目不是官方的 `sakuramux_moonlight` / `Moonlight TCP mux` 程序，也不隶属于 SakuraFRP、Moonlight、Sunshine 或其维护者。它是一个面向 Android 的兼容客户端，用于在 Android 设备上运行 mux client，可让 Moonlight 通过 Android 本机 `127.0.0.1` 的 Moonlight 端口多路复用与指定域名或IP进行通信
-
 ### 项目内容
 
 - `client/moonlight-mux-client`：Go 编写的命令行客户端。
-- `android-app`：Android App 外壳，打包并启动 Go 客户端。
+- `android-app`：Android 应用，打包并启动 Go 客户端。
 - APK 内置 `arm64-v8a` 和 `armeabi-v7a` 两套 Android 客户端。
 - 支持默认 Moonlight TCP/UDP 端口映射。
-- App 使用 Foreground Service 运行客户端。
-- App 在运行期间可创建 1x1 透明悬浮窗，用于提升部分 Android 设备后台保持稳定性。
+- 应用使用前台服务运行客户端。
+- 运行期间可创建 1x1 透明悬浮窗，帮助部分 Android 设备保持后台运行。
 - 支持保存和切换多个连接配置；旧版单配置会自动迁移为 Default profile。
 - Android 界面使用 [Miuix for Compose](https://github.com/compose-miuix-ui/miuix) 组件库。
-- Android application ID：`com.himeno.moonlightmux`。
-- 支持保存、切换多个连接配置，旧版本的单配置会自动迁移为 Default profile。
-- Android 界面使用 [Miuix for Compose](https://github.com/compose-miuix-ui/miuix) 组件库。
-- Android application ID：`com.himeno.moonlightmux`。
 
 ### 适用范围
 
 - 支持 Android 8.0+ / API 26+。
-- 推荐 Android 10+，后台限制和权限行为通常更可控。
-- 支持设备上最常见的 `arm64-v8a` 和 `armeabi-v7a`。
+- 推荐 Android 10+，后台限制和权限行为通常更容易控制。
+- 支持常见的 `arm64-v8a` 和 `armeabi-v7a` 设备。
 - 不包含 `x86` / `x86_64`，因此不面向 Intel Android 设备或 x86 模拟器发布。
-- 部分国产系统可能仍需要手动允许悬浮窗、后台运行和无限制省电策略，这有助于应用运行稳定性。
+- 部分国产系统可能还需要手动允许悬浮窗、后台运行，并将省电策略设为无限制，帮助应用稳定运行。
 
 ### 背景与 mux 配置示例
 
-Moonlight/Sunshine 使用一组固定 offset 的 TCP/UDP 端口，配对、发现、HTTP/RTSP 和串流都需要对应端口可达。自建 frpc 并完整配置所有需要的端口是可行的，不过使用 mux 的好处是只需要维护一个隧道端口，而不需要分别配置多个 TCP/UDP 端口。可以使用官方 `sakuramux_moonlight` mux 程序把 Moonlight 默认端口映射复用到一条隧道入口。**本客户端必须配合Sakuramux-moonlight服务端使用**,官方程序可从这里获取：
-
-```text
-https://nya.globalslb.net/natfrp/client/mux/moonlight/1.0.1/
-```
-
-官方程序目前缺少完整文档，下面是最小配置示例。
-
-在安装 Sunshine 的机器上运行 mux server：
-在官方程序同目录内新建一个.json文件，填写以下配置
+在安装 Sunshine 的机器上运行 mux server。在官方程序所在目录新建一个 `.json` 文件，填写以下配置：
 ```json
 {
   "mode": "server",
@@ -49,7 +28,7 @@ https://nya.globalslb.net/natfrp/client/mux/moonlight/1.0.1/
 }
 ```
 
-然后使用任意可用的 TCP 隧道服务或自建隧道，目标指向：
+然后使用可用的 TCP 隧道服务或自建隧道，将目标指向：
 
 ```text
 tcp://127.0.0.1:YOUR_LOCAL_MUX_PORT
@@ -64,30 +43,19 @@ tcp://127.0.0.1:YOUR_LOCAL_MUX_PORT
   Base port:47989
 ```
 
-两边启动 mux，并在sunshine侧启动隧道后，在 Moonlight 中连接 `127.0.0.1`，即可发现并连接远端 Sunshine 主机。
+两边启动 mux，并在 Sunshine 侧启动隧道后，在 Moonlight 中连接 `127.0.0.1`，即可发现并连接远端 Sunshine 主机。
 
-`YOUR_LOCAL_MUX_PORT` 可以自行选择；它只需要和 mux server 监听端口、隧道本地目标端口保持一致。`填写隧道启动时提供的域名:端口号` 则是 Android 客户端实际能访问到的隧道公网入口。
+`YOUR_LOCAL_MUX_PORT` 可以自行选择，保持 mux server 的监听端口和隧道的本地目标端口一致即可。`填写隧道启动时提供的域名:端口号` 是 Android 客户端能够访问的隧道公网入口。
 
-### SakuraFRP mux 二进制程序说明
-
-- 本项目是非官方 Android 客户端，不是 SakuraFRP 官方客户端，也不代表 SakuraFRP 对本项目提供支持、合作、认可、背书或担保。
-- 本仓库当前发布的 APK 内置的是本项目自行构建的 Go 客户端，不包含 SakuraFRP 官方发布的 mux 二进制程序。
-- SakuraFRP 官方 mux 二进制程序的原始下载地址为：
-
-```text
-https://nya.globalslb.net/natfrp/client/mux/moonlight/1.0.1/
-```
-
-- SakuraFRP 官方 mux 二进制程序按“原样”提供；SakuraFRP 不对本 wrapper / Android 客户端的功能、兼容性、安全性或可用性承担责任。
 
 ### 使用方式
 
-PC / Sunshine 侧仍需要运行可用的 mux server，并确保 key与客户端一致。
+PC / Sunshine 侧需要运行可用的 mux server，并确保 key 与客户端一致。
 
 Android 侧安装 App 后：
 
 1. 打开 **Moonlight Mux Client**。
-2. 填写 隧道提供的 地址和 端口号，以及服务端设置的key。
+2. 填写隧道提供的地址和端口号，以及服务端设置的 key。
 3. 首次启动时授予悬浮窗权限。
 4. 点击 **Start**。
 5. 在 Moonlight 中连接 `127.0.0.1`。

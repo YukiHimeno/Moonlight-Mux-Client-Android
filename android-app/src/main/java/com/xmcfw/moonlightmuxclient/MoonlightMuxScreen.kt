@@ -5,6 +5,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +32,6 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.basic.Button
@@ -40,11 +40,12 @@ import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.Scaffold
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SmallTopAppBar
-import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
+import top.yukonga.miuix.kmp.preference.ArrowPreference
+import top.yukonga.miuix.kmp.preference.SwitchPreference
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
@@ -80,10 +81,10 @@ fun installMoonlightContent(
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
                 Column(
                     Modifier.fillMaxWidth().widthIn(max = 600.dp).verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                 ) {
                     SmallTitle(text = "Connection")
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(Modifier.fillMaxWidth(), insideMargin = PaddingValues(20.dp)) {
                         Text(if (running.value) "CONNECTED" else "DISCONNECTED", fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (running.value) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceSecondary)
@@ -105,20 +106,17 @@ fun installMoonlightContent(
                     }
                     SmallTitle(text = "Profiles")
                     Card(Modifier.fillMaxWidth()) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(profileName.value, fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Spacer(Modifier.height(4.dp))
-                                Text(if (running.value) "Stop the connection to switch profiles" else "Manage saved connections",
-                                    fontSize = 13.sp, color = MiuixTheme.colorScheme.onSurfaceSecondary)
-                            }
-                            TextButton(text = "Manage", onClick = onProfiles, enabled = !running.value)
-                        }
+                        ArrowPreference(
+                            title = profileName.value,
+                            summary = if (running.value) "Stop the connection to switch profiles" else "Manage saved connections",
+                            onClick = onProfiles,
+                            enabled = !running.value,
+                        )
                     }
                     SmallTitle(text = "Server settings")
                     Card(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("Connection details", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                             Text("Changes are saved to the active profile.", fontSize = 13.sp,
                                 color = MiuixTheme.colorScheme.onSurfaceSecondary)
@@ -126,21 +124,15 @@ fun installMoonlightContent(
                             Field("Access key", key.value, { key.value = it }, secret = true, enabled = !running.value)
                             Field("Local address", local.value, { local.value = it }, enabled = !running.value)
                             Field("Local port", port.value, { port.value = it }, numeric = true, enabled = !running.value)
-                            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Debug logging", fontWeight = FontWeight.Medium)
-                                    Text("Include detailed connection events", fontSize = 13.sp,
-                                        color = MiuixTheme.colorScheme.onSurfaceSecondary)
-                                }
-                                Switch(checked = debug.value, onCheckedChange = { debug.value = it }, enabled = !running.value)
-                            }
                         }
+                        SwitchPreference(title = "Debug logging", summary = "Include detailed connection events",
+                            checked = debug.value, onCheckedChange = { debug.value = it }, enabled = !running.value)
                     }
                     SmallTitle(text = "Activity")
-                    Card(Modifier.fillMaxWidth()) {
+                    Card(Modifier.fillMaxWidth(), insideMargin = PaddingValues(20.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Connection log", modifier = Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
-                            TextButton(text = "Copy", onClick = onCopy)
+                            TextButton(text = "Copy", onClick = onCopy, modifier = Modifier.padding(end = 8.dp))
                             TextButton(text = "Clear", onClick = onClear)
                         }
                         Spacer(Modifier.height(12.dp))
@@ -164,7 +156,7 @@ private fun ProfileDialog(
     var deleteTarget by remember { mutableStateOf<ProfileItem?>(null) }
     OverlayDialog(show = show, title = "Profiles", summary = "Choose a saved connection or create a new one.",
         onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().heightInForProfiles().verticalScroll(rememberScrollState()),
+        Column(Modifier.fillMaxWidth().heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             profiles.forEach { profile ->
                 TextButton(
@@ -196,8 +188,6 @@ private fun ProfileDialog(
         }
     }
 }
-
-private fun Modifier.heightInForProfiles(): Modifier = this.then(Modifier.heightIn(max = 420.dp))
 
 @Composable
 private fun Field(

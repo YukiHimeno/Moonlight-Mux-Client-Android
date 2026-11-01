@@ -7,6 +7,9 @@ name: Android build
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   assemble-debug:
     runs-on: ubuntu-latest
